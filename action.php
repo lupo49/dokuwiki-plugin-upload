@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Upload Action Plugin:   Handle Upload and temporarily disabling cache of page.
  * @license GPL 2 (http://www.gnu.org/licenses/gpl.html)
@@ -6,9 +7,10 @@
  * @author    Franz Häfner <fhaefner@informatik.tu-cottbus.de>
  * @author    Randolf Rotta <rrotta@informatik.tu-cottbus.de>
  */
-
-if(!defined('DOKU_INC')) die();
-if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
+if (!defined('DOKU_INC'))
+    die();
+if (!defined('DOKU_PLUGIN'))
+    define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
 require_once DOKU_PLUGIN . 'action.php';
 require_once(DOKU_INC . 'inc/media.php');
 require_once(DOKU_INC . 'inc/infoutils.php');
@@ -37,14 +39,14 @@ class action_plugin_upload extends DokuWiki_Action_Plugin {
     }
 
     function _hook_function_cache(&$event, $param) {
-        if($_FILES['upload']['tmp_name']) {
+        if ($_FILES['upload']['tmp_name']) {
             $event->preventDefault();
             $event->stopPropagation();
             $event->result = false;
         }
 
         $namespace = p_get_metadata($event->data->page, 'has_upload_form');
-        if(!empty($namespace)) {
+        if (!empty($namespace)) {
             $event->data->key .= '|ACL' . auth_quickaclcheck($namespace);
             $event->data->cache = getCacheName($event->data->key, $event->data->ext);
         }
@@ -62,20 +64,34 @@ class action_plugin_upload extends DokuWiki_Action_Plugin {
 
         // check auth
         $AUTH = auth_quickaclcheck("$NS:*");
-        if($AUTH < AUTH_UPLOAD) {
+        if ($AUTH < AUTH_UPLOAD) {
             msg($lang['uploadfail'], -1);
             return;
         }
 
         // handle upload
-        if($_FILES['upload']['tmp_name']) {
-            $_POST['mediaid'] = $INPUT->post->str('new_name');
+        if ($_FILES['upload']['tmp_name']) {
+            $fixed = $INPUT->post->str('file');
+            if (!$this->check_extension($_FILES['upload']['name'], $fixed)) {
+                msg($lang['uploadwrong'], -1);
+                return;
+            }
+            $_POST['mediaid'] = $INPUT->post->str('new_name', $fixed);
             $JUMPTO = media_upload($NS, $AUTH);
-            if($JUMPTO) {
+            if ($JUMPTO) {
                 $NS = getNS($JUMPTO);
                 $ID = $INPUT->post->str('page');
                 $NS = getNS($ID);
             }
         }
     }
+
+    private function check_extension($filename, $fixed) {
+        if (!$fixed) {
+            return true;
+        }
+
+        return strcasecmp(substr($filename, strrpos($filename, '.') + 1), substr($fixed, strrpos($fixed, '.') + 1)) == 0;
+    }
+
 }

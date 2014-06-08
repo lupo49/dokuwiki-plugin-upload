@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Upload plugin, allows upload for users with correct
  * permission fromin a wikipage to a defined namespace.
@@ -8,10 +9,12 @@
  * @author    Franz Häfner <fhaefner@informatik.tu-cottbus.de>
  * @author    Randolf Rotta <rrotta@informatik.tu-cottbus.de>
  */
-
-if(!defined('NL')) define('NL', "\n");
-if(!defined('DOKU_INC')) define('DOKU_INC', dirname(__FILE__) . '/../../');
-if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
+if (!defined('NL'))
+    define('NL', "\n");
+if (!defined('DOKU_INC'))
+    define('DOKU_INC', dirname(__FILE__) . '/../../');
+if (!defined('DOKU_PLUGIN'))
+    define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
 require_once(DOKU_PLUGIN . 'syntax.php');
 require_once(DOKU_INC . 'inc/media.php');
 require_once(DOKU_INC . 'inc/auth.php');
@@ -54,31 +57,39 @@ class syntax_plugin_upload extends DokuWiki_Syntax_Plugin {
 
         $options['overwrite'] = in_array('OVERWRITE', $o);
         $options['renameable'] = in_array('RENAMEABLE', $o);
+        $options['fixed'] = in_array('FIXED', $o);
 
-        $ns = $matches[0];
+        if ($options['fixed']) {
+            $pos = strrpos($matches[0], ':');
+            $ns = substr($matches[0], 0, $pos);
+            $file = substr($matches[0], $pos + 1);
+        } else {
+            $ns = $matches[0];
+            $file = null;
+        }
 
-        if($ns == '@page@') {
+        if ($ns == '@page@') {
             $ns = $ID;
-        } else if($ns == '@current@') {
+        } else if ($ns == '@current@') {
             $ns = getNS($ID);
         } else {
             resolve_pageid(getNS($ID), $ns, $exists);
         }
 
-        return array('uploadns' => hsc($ns), 'para' => $options);
+        return array('uploadns' => hsc($ns), 'file' => $file, 'para' => $options);
     }
 
     function render($mode, &$renderer, $data) {
-        if($mode == 'xhtml') {
+        if ($mode == 'xhtml') {
             //check auth
             $auth = auth_quickaclcheck($data['uploadns'] . ':*');
 
-            if($auth >= AUTH_UPLOAD) {
-                $renderer->doc .= $this->upload_plugin_uploadform($data['uploadns'], $auth, $data['para']);
+            if ($auth >= AUTH_UPLOAD) {
+                $renderer->doc .= $this->upload_plugin_uploadform($data['uploadns'], $auth, $data['para'], $data['file']);
 //				$renderer->info['cache'] = false;
             }
             return true;
-        } else if($mode == 'metadata') {
+        } else if ($mode == 'metadata') {
             $renderer->meta['has_upload_form'] = $data['uploadns'] . ':*';
             return true;
         }
@@ -93,12 +104,13 @@ class syntax_plugin_upload extends DokuWiki_Syntax_Plugin {
      * @author    Franz Häfner <fhaefner@informatik.tu-cottbus.de>
      * @author    Randolf Rotta <rrotta@informatik.tu-cottbus.de>
      */
-    function upload_plugin_uploadform($ns, $auth, $options) {
+    function upload_plugin_uploadform($ns, $auth, $options, $file) {
         global $ID;
         global $lang;
         $html = '';
 
-        if($auth < AUTH_UPLOAD) return;
+        if ($auth < AUTH_UPLOAD)
+            return;
 
         $params = array();
         $params['id'] = 'upload_plugin';
@@ -113,21 +125,22 @@ class syntax_plugin_upload extends DokuWiki_Syntax_Plugin {
         $form->addElement(formSecurityToken());
         $form->addHidden('page', hsc($ID));
         $form->addHidden('ns', hsc($ns));
+        $form->addHidden('file', hsc($file));
         $form->addElement(form_makeFileField('upload', $lang['txt_upload'] . ':', 'upload__file'));
-        if($options['renameable']) {
+        if ($options['renameable']) {
             // don't name this field here "id" because it is misinterpreted by DokuWiki if the upload form is not in media manager
             $form->addElement(form_makeTextField('new_name', '', $lang['txt_filename'] . ':', 'upload__name'));
         }
 
-        if($auth >= AUTH_DELETE) {
-            if($options['overwrite']) {
+        if ($auth >= AUTH_DELETE) {
+            if ($options['overwrite']) {
                 //$form->addElement(form_makeCheckboxField('ow', 1, $lang['txt_overwrt'], 'dw__ow', 'check'));
                 // circumvent wrong formatting in doku_form
                 $form->addElement(
-                    '<label class="check" for="dw__ow">' .
-                    '<span>' . $lang['txt_overwrt'] . '</span>' .
-                    '<input type="checkbox" id="dw__ow" name="ow" value="1"/>' .
-                    '</label>'
+                        '<label class="check" for="dw__ow">' .
+                        '<span>' . $lang['txt_overwrt'] . '</span>' .
+                        '<input type="checkbox" id="dw__ow" name="ow" value="1"/>' .
+                        '</label>'
                 );
             }
         }
@@ -139,6 +152,7 @@ class syntax_plugin_upload extends DokuWiki_Syntax_Plugin {
         $html .= '</p></div>' . NL;
         return $html;
     }
+
 }
 
 //Setup VIM: ex: et ts=4 enc=utf-8 :
